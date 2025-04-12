@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Gas Tracker</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <style>
     body {
       font-family: sans-serif;
@@ -31,72 +32,64 @@
   </style>
 </head>
 <body>
-  <h1>Gas Tracker</h1>
-  <form id="gas-form">
-    <input type="date" id="date" required />
-    <input type="number" id="miles" placeholder="Miles Driven" step="0.1" required />
-    <input type="number" id="mpg" placeholder="MPG (from car)" step="0.1" required />
-    <input type="number" id="gallons" placeholder="Gallons Purchased" step="0.01" required />
-    <input type="number" id="price" placeholder="Total Price ($)" step="0.01" required />
-    <button type="submit">Add Entry</button>
-  </form>
+  <div id="app">
+    <h1>Gas Tracker</h1>
+    <form @submit.prevent="addEntry">
+      <input type="date" v-model="newEntry.date" required />
+      <input type="number" v-model.number="newEntry.miles" placeholder="Miles Driven" step="0.1" required />
+      <input type="number" v-model.number="newEntry.mpg" placeholder="MPG (from car)" step="0.1" required />
+      <input type="number" v-model.number="newEntry.gallons" placeholder="Gallons Purchased" step="0.01" required />
+      <input type="number" v-model.number="newEntry.price" placeholder="Total Price ($)" step="0.01" required />
+      <button type="submit">Add Entry</button>
+    </form>
 
-  <div class="summary">
-    <h3>Summary</h3>
-    <p>Total Spent: $<span id="total-spent">0.00</span></p>
-    <p>Average MPG: <span id="average-mpg">0</span></p>
+    <div class="summary">
+      <h3>Summary</h3>
+      <p>Total Spent: ${{ totalSpent.toFixed(2) }}</p>
+      <p>Average MPG: {{ averageMpg.toFixed(1) }}</p>
+    </div>
+
+    <h3>Entries</h3>
+    <div v-for="entry in entries" :key="entry.date + entry.miles" class="entry">
+      <strong>{{ entry.date }}</strong><br>
+      {{ entry.miles }} miles • {{ entry.gallons }} gal • ${{ entry.price }} • {{ entry.mpg }} MPG • ${{ (entry.price / entry.gallons).toFixed(2) }}/gal
+    </div>
   </div>
 
-  <h3>Entries</h3>
-  <div id="entries"></div>
-
   <script>
-    const form = document.getElementById('gas-form');
-    const entriesDiv = document.getElementById('entries');
-    const totalSpentEl = document.getElementById('total-spent');
-    const averageMpgEl = document.getElementById('average-mpg');
-
-    let entries = JSON.parse(localStorage.getItem('gasEntries')) || [];
-
-    const render = () => {
-      entriesDiv.innerHTML = '';
-      let totalSpent = 0;
-      let totalMpg = 0;
-      entries.forEach(entry => {
-        const pricePerGallon = (entry.price / entry.gallons).toFixed(2);
-        totalSpent += parseFloat(entry.price);
-        totalMpg += parseFloat(entry.mpg);
-
-        const div = document.createElement('div');
-        div.className = 'entry';
-        div.innerHTML = `
-          <strong>${entry.date}</strong><br>
-          ${entry.miles} miles • ${entry.gallons} gal • $${entry.price} • ${entry.mpg} MPG • $${pricePerGallon}/gal
-        `;
-        entriesDiv.appendChild(div);
-      });
-
-      totalSpentEl.textContent = totalSpent.toFixed(2);
-      averageMpgEl.textContent = entries.length ? (totalMpg / entries.length).toFixed(1) : '0';
-    };
-
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const entry = {
-        date: document.getElementById('date').value,
-        miles: document.getElementById('miles').value,
-        mpg: document.getElementById('mpg').value,
-        gallons: document.getElementById('gallons').value,
-        price: document.getElementById('price').value
-      };
-      entries.unshift(entry);
-      localStorage.setItem('gasEntries', JSON.stringify(entries));
-      form.reset();
-      render();
+    const app = Vue.createApp({
+      data() {
+        return {
+          newEntry: {
+            date: '',
+            miles: '',
+            mpg: '',
+            gallons: '',
+            price: ''
+          },
+          entries: JSON.parse(localStorage.getItem('gasEntries') || '[]')
+        };
+      },
+      computed: {
+        totalSpent() {
+          return this.entries.reduce((sum, e) => sum + parseFloat(e.price), 0);
+        },
+        averageMpg() {
+          if (!this.entries.length) return 0;
+          const total = this.entries.reduce((sum, e) => sum + parseFloat(e.mpg), 0);
+          return total / this.entries.length;
+        }
+      },
+      methods: {
+        addEntry() {
+          this.entries.unshift({ ...this.newEntry });
+          localStorage.setItem('gasEntries', JSON.stringify(this.entries));
+          this.newEntry = { date: '', miles: '', mpg: '', gallons: '', price: '' };
+        }
+      }
     });
 
-    render();
+    app.mount('#app');
   </script>
 </body>
 </html>
-
